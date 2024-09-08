@@ -13,7 +13,7 @@ use crate::{
     web::auth::{LoginTemplate, NEXT_URL_KEY},
 };
 
-use openidconnect::{CsrfToken, Nonce, AuthorizationCode};
+use openidconnect::{AuthorizationCode, CsrfToken, Nonce};
 
 pub const CSRF_STATE_KEY: &str = "oauth.csrf-state";
 pub const NONCE_KEY: &str = "oauth.nonce";
@@ -42,14 +42,27 @@ mod get {
         let Ok(Some(old_state)) = session.get(CSRF_STATE_KEY).await else {
             return StatusCode::BAD_REQUEST.into_response();
         };
-        
-        let nonce: Nonce = session.get(NONCE_KEY).await.unwrap().unwrap();
-        
+
+        let nonce: Nonce = match session.get(NONCE_KEY).await {
+            Ok(Some(nonce)) => nonce,
+            Ok(None) => {
+                return (
+                    StatusCode::UNAUTHORIZED,
+                    LoginTemplate {
+                        message: Some("Failed to retrieve OIDC nonce".to_string()),
+                        next: None,
+                    },
+                )
+                    .into_response()
+            }
+            Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        };
+
         let creds = Credentials {
             code,
             old_state,
             new_state,
-            nonce
+            nonce,
         };
 
         let user = match auth_session.authenticate(creds).await {
