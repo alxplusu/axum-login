@@ -18,10 +18,7 @@ mod get {
 
     pub async fn protected(auth_session: AuthSession) -> impl IntoResponse {
         match auth_session.user {
-            Some(user) => ProtectedTemplate {
-                username: &user.id,
-            }
-            .into_response(),
+            Some(user) => ProtectedTemplate { username: &user.id }.into_response(),
 
             None => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
         }

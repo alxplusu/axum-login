@@ -59,7 +59,7 @@ mod post {
             .insert(NONCE_KEY, nonce)
             .await
             .expect("Serialization should not fail.");
-        
+
         Redirect::to(auth_url.as_str()).into_response()
     }
 }

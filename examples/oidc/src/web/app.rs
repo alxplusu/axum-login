@@ -12,10 +12,14 @@ use crate::{
     web::{auth, oauth, protected},
 };
 
-use openidconnect::{ClientId, ClientSecret,reqwest::async_http_client, core::{CoreClient, CoreProviderMetadata}, IssuerUrl, RedirectUrl};
+use openidconnect::{
+    core::{CoreClient, CoreProviderMetadata},
+    reqwest::async_http_client,
+    ClientId, ClientSecret, IssuerUrl, RedirectUrl,
+};
 
 pub struct App {
-   client: CoreClient,
+    client: CoreClient,
 }
 
 impl App {
@@ -23,23 +27,27 @@ impl App {
         dotenvy::dotenv()?;
 
         let app_url = env::var("APP_URL").expect("APP_URL should be provided.");
-        let issuer_url = env::var("ISSUER_URL").map(IssuerUrl::new).expect("ISSUER_URL should be provided").expect("ISSUER_URL should be a valid URL");        
+        let issuer_url = env::var("ISSUER_URL")
+            .map(IssuerUrl::new)
+            .expect("ISSUER_URL should be provided")
+            .expect("ISSUER_URL should be a valid URL");
         let client_id = env::var("CLIENT_ID")
             .map(ClientId::new)
             .expect("CLIENT_ID should be provided.");
         let client_secret = env::var("CLIENT_SECRET")
             .map(ClientSecret::new)
             .expect("CLIENT_SECRET should be provided");
-        
+
         let provider_metadata = CoreProviderMetadata::discover_async(issuer_url, async_http_client)
             .await
             .expect("Unable to discover Open ID metadata");
-        
-        let client = CoreClient::from_provider_metadata(provider_metadata, client_id, Some(client_secret))
-            .set_redirect_uri(
-                RedirectUrl::new(format!("{}/oauth/callback", app_url ))
-                    .expect("Redirect URL must be set"),
-            );
+
+        let client =
+            CoreClient::from_provider_metadata(provider_metadata, client_id, Some(client_secret))
+                .set_redirect_uri(
+                    RedirectUrl::new(format!("{}/oauth/callback", app_url))
+                        .expect("Redirect URL must be set"),
+                );
 
         Ok(Self { client })
     }

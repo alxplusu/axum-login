@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use axum_login::{AuthUser, AuthnBackend, UserId};
 
 use openidconnect::{
-    core::CoreErrorResponseType, core::{CoreIdTokenVerifier, CoreResponseType, CoreIdTokenClaims, CoreClient }, reqwest::async_http_client, url::Url,
+    core::CoreErrorResponseType, core::{CoreIdTokenVerifier, CoreResponseType, CoreRequestTokenError, CoreIdTokenClaims, CoreClient }, reqwest::async_http_client, url::Url,
     ClaimsVerificationError, AuthenticationFlow, AuthorizationCode, CsrfToken, Nonce, RequestTokenError, Scope,StandardErrorResponse
 };
 
@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Serialize, Deserialize)]
 pub struct User {
     pub id: String,
+    pub session_auth_hash: String
 }
 
 // Here we've implemented `Debug` manually to avoid accidentally logging the
@@ -25,13 +26,12 @@ impl std::fmt::Debug for User {
 
 impl AuthUser for User {
     type Id = String;
-
     fn id(&self) -> Self::Id {
         self.id.clone()
     }
 
     fn session_auth_hash(&self) -> &[u8] {
-        self.id.as_bytes()
+        self.session_auth_hash.as_bytes()
     }
 }
 
@@ -58,7 +58,7 @@ pub enum BackendError {
         >,
     ),
     #[error(transparent)]
-    OpenIdVerification( ClaimsVerificationError )
+    OpenIdVerification( ClaimsVerificationError ),    
 }
 
 #[derive(Debug, Clone)]
@@ -111,11 +111,12 @@ impl AuthnBackend for Backend {
         let id_token_verifier: CoreIdTokenVerifier = self.client.id_token_verifier();
         let id_token_claims: &CoreIdTokenClaims = token_response
             .extra_fields()
-            .id_token()
+             // This should always return Some for OIDC, but perhaps worth properly checking (see https://docs.rs/openidconnect/latest/openidconnect/trait.TokenResponse.html#tymethod.id_token)
+            .id_token() 
             .expect("Server did not return an ID token")
             .claims(&id_token_verifier, &creds.nonce)
             .map_err(Self::Error::OpenIdVerification)?;
-        println!("Gitlab returned ID token: {:?}", id_token_claims.subject());
+        println!("Gitlab returned ID: {:?}", id_token_claims.subject());
         Ok(Some(User {
             id: id_token_claims.subject().to_string(),
         }))
